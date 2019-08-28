@@ -43,6 +43,8 @@
 bool verbose = false;
 const char *token = NULL;
 const char *senderID = NULL;
+const char *title = NULL;
+const char *message = NULL;
 
 
 	/***
@@ -101,7 +103,7 @@ void read_configuration( const char *fch){
 	}
 
 	if( !token || !senderID ){
-		fputs("Missing a mandatory parameter in the configuration file\n", stderr);
+		fputs("*F* Missing a mandatory parameter in the configuration file\n", stderr);
 		exit(EXIT_FAILURE);
 	}
 }
@@ -110,7 +112,7 @@ int main( int ac, char ** av){
 	const char *conf_file = DEFAULT_CONFIGURATION_FILE;
 
 	int c;
-	while((c = getopt(ac, av, "vhf:")) != EOF) switch(c){
+	while((c = getopt(ac, av, "vhf:t:m:")) != EOF) switch(c){
 	case 'h':
 		fprintf(stderr, "%s (%s)\n"
 			"Submit Firebase Cloud Messaging notification\n"
@@ -118,21 +120,47 @@ int main( int ac, char ** av){
 			"\t-h : this online help\n"
 			"\t-v : enable verbose messages\n"
 			"\t-f<file> : read <file> for configuration\n"
-			"\t\t(default is '%s')\n" ,
+			"\t\t(default is '%s')\n"
+			"\nStandards parameters (mandatory) :\n"
+			"\t-t<title> : title to be send\n"
+			"\t-m<message> : message to be send\n"
+			"\nNewtifryPro specifics (optional)\n"
+			"\t-s<source_name>\n"
+			"\t-p<num> : priority (-512 to 3)\n"
+			"\t-k<Yes|No> : force speaking\n"
+			"\t-n<Yes|No> : force notification\n"
+			"\t-a<sticky|locked> : behaviour of the message (on top / can't be removed)\n",
 			basename(av[0]), VERSION, DEFAULT_CONFIGURATION_FILE
 		);
 		exit(EXIT_FAILURE);
 		break;
 	case 'v':
 		verbose = true;
+		printf("%s (%s)\n-----------------\n", basename(av[0]), VERSION);
 		break;
 	case 'f':
-		conf_file = optarg;
+		assert( conf_file = strdup(optarg) );
+		break;
+	case 't':
+		assert( title = strdup(optarg) );
+		if(verbose)
+			printf("Title : \"%s\"\n", title);
+		break;
+	case 'm':
+		assert( message = strdup(optarg) );
+		if(verbose)
+			printf("Message : \"%s\"\n", message);
 		break;
 	default:
 		fprintf(stderr, "Unknown option\n%s -h\n\tfor some help\n", av[0] );
 		exit(EXIT_FAILURE);
 	}
+
+	if(!title || !message){
+		fputs("*F* Title or Message missing\n", stderr);
+		exit(EXIT_FAILURE);
+	}
+
 	read_configuration( conf_file );
 
 	exit(EXIT_SUCCESS);

@@ -45,7 +45,8 @@ const char *token = NULL;
 const char *senderID = NULL;
 const char *title = NULL;
 const char *message = NULL;
-
+const char *source = NULL;
+short int priority = 0;
 
 	/***
 	 * Helpers
@@ -112,7 +113,7 @@ int main( int ac, char ** av){
 	const char *conf_file = DEFAULT_CONFIGURATION_FILE;
 
 	int c;
-	while((c = getopt(ac, av, "vhf:t:m:")) != EOF) switch(c){
+	while((c = getopt(ac, av, "vhf:t:m:s:p:")) != EOF) switch(c){
 	case 'h':
 		fprintf(stderr, "%s (%s)\n"
 			"Submit Firebase Cloud Messaging notification\n"
@@ -150,6 +151,16 @@ int main( int ac, char ** av){
 		assert( message = strdup(optarg) );
 		if(verbose)
 			printf("Message : \"%s\"\n", message);
+		break;
+	case 's':
+		assert( source = strdup(optarg) );
+		if(verbose)
+			printf("Source : \"%s\"\n", source);
+		break;
+	case 'p':
+		priority = atoi(optarg);
+		if(verbose)
+			printf("Priority : %d\n", priority);
 		break;
 	default:
 		fprintf(stderr, "Unknown option\n%s -h\n\tfor some help\n", av[0] );

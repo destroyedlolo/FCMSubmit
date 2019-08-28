@@ -47,6 +47,9 @@ const char *title = NULL;
 const char *message = NULL;
 const char *source = NULL;
 short int priority = 0;
+short int speak = 0;
+short int notify = 0;
+
 
 	/***
 	 * Helpers
@@ -72,8 +75,9 @@ char *striKWcmp( char *s, const char *kw ){
 		return s+klen;
 }
 
+
 	/***
-	 * Let's go ...
+	 * Configuration & parameters
 	 ***/
 
 void read_configuration( const char *fch){
@@ -109,11 +113,30 @@ void read_configuration( const char *fch){
 	}
 }
 
+bool checkYesNo( const char *arg, short int *val ){
+/* Check if the argument is "yes" or "no"
+ * <- val : pointer to the result -1:no, 1:yes
+ * -> is valid : false if not "yes" or "no"
+ */
+	if(!strcasecmp(arg, "yes")){
+		*val = 1;
+		return true;
+	} else if(!strcasecmp(arg, "no")){
+		*val = -1;
+		return true;
+	} else /* incorrect argument */
+		return false;
+}
+
+	/***
+	 * Let's go ...
+	 ***/
+
 int main( int ac, char ** av){
 	const char *conf_file = DEFAULT_CONFIGURATION_FILE;
 
 	int c;
-	while((c = getopt(ac, av, "vhf:t:m:s:p:")) != EOF) switch(c){
+	while((c = getopt(ac, av, "vhf:t:m:s:p:k:n:")) != EOF) switch(c){
 	case 'h':
 		fprintf(stderr, "%s (%s)\n"
 			"Submit Firebase Cloud Messaging notification\n"
@@ -161,6 +184,22 @@ int main( int ac, char ** av){
 		priority = atoi(optarg);
 		if(verbose)
 			printf("Priority : %d\n", priority);
+		break;
+	case 'k':
+		if(!checkYesNo(optarg,&speak)){
+			fputs("*F* Speak accept only \"Yes\" and \"No\"\n", stderr);
+			exit(EXIT_FAILURE);
+		}
+		if(verbose)
+			printf("Speak : %s\n", (speak==1) ? "Yes":"No");
+		break;
+	case 'n':
+		if(!checkYesNo(optarg,&notify)){
+			fputs("*F* Notify accept only \"Yes\" and \"No\"\n", stderr);
+			exit(EXIT_FAILURE);
+		}
+		if(verbose)
+			printf("Notify : %s\n", (notify==1) ? "Yes":"No");
 		break;
 	default:
 		fprintf(stderr, "Unknown option\n%s -h\n\tfor some help\n", av[0] );

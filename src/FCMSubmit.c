@@ -47,8 +47,8 @@ const char *title = NULL;
 const char *message = NULL;
 const char *source = NULL;
 short int priority = 0;
-short int speak = 0;
-short int notify = 0;
+short int speak = -1;
+short int notify = -1;
 
 
 	/***
@@ -115,14 +115,29 @@ void read_configuration( const char *fch){
 
 bool checkYesNo( const char *arg, short int *val ){
 /* Check if the argument is "yes" or "no"
- * <- val : pointer to the result -1:no, 1:yes
+ * <- val : pointer to the result 0:no, 1:yes
  * -> is valid : false if not "yes" or "no"
  */
 	if(!strcasecmp(arg, "yes")){
 		*val = 1;
 		return true;
 	} else if(!strcasecmp(arg, "no")){
-		*val = -1;
+		*val = 0;
+		return true;
+	} else /* incorrect argument */
+		return false;
+}
+
+bool checkState( const char *arg, short int *val ){
+/* Check if the argument is "sticky" or "locked"
+ * <- val : pointer to the result 1:sticky, 1:locked
+ * -> is valid : false if not "sticky" or "no"
+ */
+	if(!strcasecmp(arg, "sticky")){
+		*val = 1;
+		return true;
+	} else if(!strcasecmp(arg, "locked")){
+		*val = 2;
 		return true;
 	} else /* incorrect argument */
 		return false;
@@ -136,7 +151,7 @@ int main( int ac, char ** av){
 	const char *conf_file = DEFAULT_CONFIGURATION_FILE;
 
 	int c;
-	while((c = getopt(ac, av, "vhf:t:m:s:p:k:n:")) != EOF) switch(c){
+	while((c = getopt(ac, av, "vhf:t:m:s:p:k:n:a:")) != EOF) switch(c){
 	case 'h':
 		fprintf(stderr, "%s (%s)\n"
 			"Submit Firebase Cloud Messaging notification\n"
@@ -200,6 +215,14 @@ int main( int ac, char ** av){
 		}
 		if(verbose)
 			printf("Notify : %s\n", (notify==1) ? "Yes":"No");
+		break;
+	case 'a':
+		if(!checkState(optarg,&notify)){
+			fputs("*F* State accept only \"sticky\" and \"locked\"\n", stderr);
+			exit(EXIT_FAILURE);
+		}
+		if(verbose)
+			printf("State : %s\n", (notify==1) ? "Sticky":"Locked");
 		break;
 	default:
 		fprintf(stderr, "Unknown option\n%s -h\n\tfor some help\n", av[0] );

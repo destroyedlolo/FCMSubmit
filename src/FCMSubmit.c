@@ -22,9 +22,12 @@
 #include <unistd.h>		/* getopt(), ... */
 #include <libgen.h>		/* basename(), ... */
 #include <assert.h>
+#include <time.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+
+#include <json-c/json.h>
 
 	/***
 	 * Default configuration
@@ -143,6 +146,30 @@ bool checkState( const char *arg, short int *val ){
 		return false;
 }
 
+
+	/***
+	 * Json generation
+	 ***/
+
+void generateFCM(const char *title, const char *msg){
+	char buf[sizeof "AAAA-MM-DDTHH:MM:SSZ"+1];
+	time_t now;
+	time(&now);
+	strftime(buf, sizeof buf, "%FT%TZ", gmtime(&now));
+
+	json_object *jobj = json_object_new_object();
+	json_object *sub = json_object_new_object();
+
+	json_object_object_add( sub, "type", json_object_new_string("ntp_message") );
+	json_object_object_add( sub, "timestamp", json_object_new_string(buf) );
+
+	json_object_object_add( jobj, "data", sub );
+	printf("=> '%s'\n", json_object_to_json_string(jobj) );
+
+	json_object_put(jobj);
+}
+
+
 	/***
 	 * Let's go ...
 	 ***/
@@ -235,6 +262,8 @@ int main( int ac, char ** av){
 	}
 
 	read_configuration( conf_file );
+
+	generateFCM( title, message );
 
 	exit(EXIT_SUCCESS);
 }

@@ -2,5 +2,5 @@
 
 cd src
 
-LFMakeMaker -v +f=Makefile --opts="-Wall -DxDEBUG -Wno-parentheses" *.c -t=../FCMSubmit > Makefile
+LFMakeMaker -v +f=Makefile --opts="\`pkg-config --cflags json-c\` \`pkg-config --libs json-c\` -Wall -DxDEBUG -Wno-parentheses" *.c -t=../FCMSubmit > Makefile
 

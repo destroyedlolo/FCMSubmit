@@ -185,7 +185,19 @@ char *base64Encode(const unsigned char *input, size_t length){
 	return buff;
 }
 
-void generateFCM(const char *title, const char *msg){
+char *base64EncodeString( const char *msg ){
+	if(!msg)
+		return NULL;
+	return base64Encode( (const unsigned char *)msg, strlen(msg) );
+}
+
+void generateFCM(
+	const char *title, const char *msg,
+	short int priority
+){
+/* generate an FCM payload. */
+	char *t;
+
 	char buf[sizeof "AAAA-MM-DDTHH:MM:SSZ"+1];
 	time_t now;
 	time(&now);
@@ -193,9 +205,21 @@ void generateFCM(const char *title, const char *msg){
 
 	json_object *jobj = json_object_new_object();
 	json_object *sub = json_object_new_object();
+	assert( jobj && sub );
 
-	json_object_object_add( sub, "type", json_object_new_string("ntp_message") );
-	json_object_object_add( sub, "timestamp", json_object_new_string(buf) );
+	assert( !json_object_object_add( sub, "type", json_object_new_string("ntp_message") ) );
+	assert( !json_object_object_add( sub, "timestamp", json_object_new_string(buf) ) );
+
+		/* IMPORTANT NOTE : as the time of writing, data are copied to newly allocated
+		 * space so data can be freed just afterward.
+		 */
+	assert( !json_object_object_add( sub, "priority", json_object_new_int( priority )) );
+	assert( !json_object_object_add( sub, "title", json_object_new_string( t = base64EncodeString(title) )) );
+	free(t);
+	if(msg){
+		assert( !json_object_object_add( sub, "message", json_object_new_string( t = base64EncodeString(msg) )) );
+		free(t);
+	}
 
 	json_object_object_add( jobj, "data", sub );
 	printf("=> '%s'\n", json_object_to_json_string(jobj) );
@@ -290,14 +314,14 @@ int main( int ac, char ** av){
 		exit(EXIT_FAILURE);
 	}
 
-	if(!title || !message){
-		fputs("*F* Title or Message missing\n", stderr);
+	if(!title){
+		fputs("*F* Title missing\n", stderr);
 		exit(EXIT_FAILURE);
 	}
 
 	read_configuration( conf_file );
 
-	generateFCM( title, message );
+	generateFCM( title, message, priority );
 
 	exit(EXIT_SUCCESS);
 }

@@ -29,6 +29,12 @@
 
 #include <json-c/json.h>
 
+// #include <openssl/sha.h>
+// #include <openssl/hmac.h>
+#include <openssl/evp.h>
+#include <openssl/bio.h>
+#include <openssl/buffer.h>
+
 	/***
 	 * Default configuration
 	 ***/
@@ -150,6 +156,34 @@ bool checkState( const char *arg, short int *val ){
 	/***
 	 * Json generation
 	 ***/
+
+char *base64Encode(const unsigned char *input, size_t length){
+/* encode chunk of memory to base64
+ * (from https://stackoverflow.com/questions/22861325/base64-encoding-with-c-and-openssl)
+ *
+ * -> input, lenght : chunck to encode
+ * <- malloc()ed base64 encoding / NULL in case of error
+ */
+	BIO *bmem = BIO_new(BIO_s_mem()), *b64 = BIO_new(BIO_f_base64());
+	BUF_MEM *bptr;
+
+	if(!bmem || !b64)
+		return NULL;
+
+	b64 = BIO_push(b64, bmem);
+	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+	BIO_write(b64, input, length);
+	BIO_flush(b64);
+	BIO_get_mem_ptr(b64, &bptr);
+
+	char *buff = (char *)malloc(bptr->length+1);
+	memcpy(buff, bptr->data, bptr->length);
+	buff[bptr->length] = 0;
+
+	BIO_free_all(b64);
+
+	return buff;
+}
 
 void generateFCM(const char *title, const char *msg){
 	char buf[sizeof "AAAA-MM-DDTHH:MM:SSZ"+1];

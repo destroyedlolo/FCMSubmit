@@ -6,7 +6,7 @@ gotoall: all
 
 #The compiler (may be customized for compiler's options).
 cc=cc
-opts=`pkg-config --cflags json-c` `pkg-config --libs json-c` -Wall -DxDEBUG -Wno-parentheses
+opts=`pkg-config --cflags json-c` `pkg-config --libs json-c` -lssl -lcrypto -Wall -DxDEBUG -Wno-parentheses
 
 FCMSubmit.o : FCMSubmit.c Makefile 
 	$(cc) -c -o FCMSubmit.o FCMSubmit.c $(opts) 

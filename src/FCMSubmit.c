@@ -192,6 +192,7 @@ char *base64EncodeString( const char *msg ){
 }
 
 void generateFCM(
+	const char *token, const char *senderID,
 	const char *title, const char *msg,
 	short int priority
 ){
@@ -206,6 +207,8 @@ void generateFCM(
 	json_object *jobj = json_object_new_object();
 	json_object *sub = json_object_new_object();
 	assert( jobj && sub );
+
+	assert( !json_object_object_add( jobj, "registration_ids", json_object_new_string(senderID) ) );
 
 	assert( !json_object_object_add( sub, "type", json_object_new_string("ntp_message") ) );
 	assert( !json_object_object_add( sub, "timestamp", json_object_new_string(buf) ) );
@@ -321,7 +324,7 @@ int main( int ac, char ** av){
 
 	read_configuration( conf_file );
 
-	generateFCM( title, message, priority );
+	generateFCM( token, senderID, title, message, priority );
 
 	exit(EXIT_SUCCESS);
 }

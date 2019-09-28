@@ -29,6 +29,8 @@
 
 #include <json-c/json.h>
 
+#include <curl/curl.h>
+
 // #include <openssl/sha.h>
 // #include <openssl/hmac.h>
 #include <openssl/evp.h>
@@ -177,8 +179,10 @@ char *base64Encode(const unsigned char *input, size_t length){
 	BIO_get_mem_ptr(b64, &bptr);
 
 	char *buff = (char *)malloc(bptr->length+1);
-	memcpy(buff, bptr->data, bptr->length);
-	buff[bptr->length] = 0;
+	if(buff){
+		memcpy(buff, bptr->data, bptr->length);
+		buff[bptr->length] = 0;
+	}
 
 	BIO_free_all(b64);
 
@@ -191,13 +195,19 @@ char *base64EncodeString( const char *msg ){
 	return base64Encode( (const unsigned char *)msg, strlen(msg) );
 }
 
-void generateFCM(
+const char *sendFCM(
 	const char *token, const char *senderID,
 	const char *title, const char *msg,
 	short int priority
 ){
-/* generate an FCM payload. */
-	char *t;
+/* generate an FCM payload.
+ *	<- Error message or NULL
+ *
+ *	NOTE : to save some code, there is no healthy checks on allocation.
+ *	As objects are quite small, if we can't allocate them, we're already
+ *	on the edge and our application will crash soon.
+ */
+	char *t = NULL;
 
 	char buf[sizeof "AAAA-MM-DDTHH:MM:SSZ"+1];
 	time_t now;
@@ -206,28 +216,60 @@ void generateFCM(
 
 	json_object *jobj = json_object_new_object();
 	json_object *sub = json_object_new_object();
-	assert( jobj && sub );
-
-	assert( !json_object_object_add( jobj, "registration_ids", json_object_new_string(senderID) ) );
-
-	assert( !json_object_object_add( sub, "type", json_object_new_string("ntp_message") ) );
-	assert( !json_object_object_add( sub, "timestamp", json_object_new_string(buf) ) );
+	json_object *regarray = json_object_new_array();
 
 		/* IMPORTANT NOTE : as the time of writing, data are copied to newly allocated
 		 * space so data can be freed just afterward.
 		 */
-	assert( !json_object_object_add( sub, "priority", json_object_new_int( priority )) );
-	assert( !json_object_object_add( sub, "title", json_object_new_string( t = base64EncodeString(title) )) );
+	json_object_array_add( regarray, json_object_new_string(senderID));
+	json_object_object_add( sub, "type", json_object_new_string("ntp_message"));
+	json_object_object_add( sub, "timestamp", json_object_new_string(buf));
+	json_object_object_add( sub, "priority", json_object_new_int( priority ));
+	json_object_object_add( sub, "title", json_object_new_string( t = base64EncodeString(title) ));
 	free(t);
 	if(msg){
-		assert( !json_object_object_add( sub, "message", json_object_new_string( t = base64EncodeString(msg) )) );
+		json_object_object_add( sub, "message", json_object_new_string( t = base64EncodeString(msg) ));
 		free(t);
 	}
 
+	json_object_object_add( jobj, "registration_ids", regarray );
 	json_object_object_add( jobj, "data", sub );
-	printf("=> '%s'\n", json_object_to_json_string(jobj) );
 
-	json_object_put(jobj);
+printf("*D* => '%s'\n", json_object_to_json_string(jobj) );
+
+		/* Send using curl */
+/* --> https://curl.haxx.se/libcurl/c/http-post.html */
+	CURL *curl;
+	CURLcode res;
+	
+	curl_global_init(CURL_GLOBAL_ALL);
+	assert( curl = curl_easy_init() );
+
+	curl_easy_setopt(curl, CURLOPT_URL, "https://fcm.googleapis.com/fcm/send");
+
+	struct curl_slist *list = NULL;
+	char key[ strlen("Authorization: key=") + strlen(token) +1 ];
+	sprintf(key, "Authorization: key=%s", token);
+	list = curl_slist_append(list, key);
+	list = curl_slist_append(list, "Content-Type: application/json");
+	res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
+	if(res != CURLE_OK){
+		fprintf(stderr,"CURLOPT_HTTPHEADER error : %d\n", res);
+		goto clean;
+	}
+	res = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_object_to_json_string(jobj));
+	if(res != CURLE_OK){
+		fprintf(stderr,"CURLOPT_POSTFIELDS error : %d\n", res);
+		goto clean;
+	}
+
+		/* Cleaning */
+clean:
+	curl_slist_free_all(list);
+	curl_easy_cleanup(curl);
+	json_object_put(jobj);	// As linked, all json objects will be freed
+
+	return NULL;
 }
 
 
@@ -324,7 +366,11 @@ int main( int ac, char ** av){
 
 	read_configuration( conf_file );
 
-	generateFCM( token, senderID, title, message, priority );
+	const char *res = sendFCM( token, senderID, title, message, priority );
+	if(res){
+		fprintf( stderr, "*E* %s\n", res );
+		exit(EXIT_FAILURE);
+	}
 
 	exit(EXIT_SUCCESS);
 }

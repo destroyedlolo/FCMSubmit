@@ -247,19 +247,25 @@ printf("*D* => '%s'\n", json_object_to_json_string(jobj) );
 
 	curl_easy_setopt(curl, CURLOPT_URL, "https://fcm.googleapis.com/fcm/send");
 
+	const char *retmsg = NULL;
+
 	struct curl_slist *list = NULL;
 	char key[ strlen("Authorization: key=") + strlen(token) +1 ];
 	sprintf(key, "Authorization: key=%s", token);
 	list = curl_slist_append(list, key);
 	list = curl_slist_append(list, "Content-Type: application/json");
-	res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
-	if(res != CURLE_OK){
-		fprintf(stderr,"CURLOPT_HTTPHEADER error : %d\n", res);
+	
+	if((res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list)) != CURLE_OK){
+		retmsg = curl_easy_strerror(res);
 		goto clean;
 	}
-	res = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_object_to_json_string(jobj));
-	if(res != CURLE_OK){
-		fprintf(stderr,"CURLOPT_POSTFIELDS error : %d\n", res);
+	if((res = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_object_to_json_string(jobj))) != CURLE_OK){
+		retmsg = curl_easy_strerror(res);
+		goto clean;
+	}
+
+	if((res = curl_easy_perform(curl)) != CURLE_OK){
+		retmsg = curl_easy_strerror(res);
 		goto clean;
 	}
 
@@ -269,7 +275,7 @@ clean:
 	curl_easy_cleanup(curl);
 	json_object_put(jobj);	// As linked, all json objects will be freed
 
-	return NULL;
+	return retmsg;
 }
 
 

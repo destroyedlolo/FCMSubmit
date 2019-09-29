@@ -195,10 +195,17 @@ char *base64EncodeString( const char *msg ){
 	return base64Encode( (const unsigned char *)msg, strlen(msg) );
 }
 
+
+static size_t noop_cb(void *ptr, size_t size, size_t nmemb, void *data) {
+/* Fake libcurl writing function */
+	return size * nmemb;
+}
+
 const char *sendFCM(
 	const char *token, const char *senderID,
 	const char *title, const char *msg,
-	short int priority
+	short int priority,
+	bool verbose	/* Let libcurl writing to stdout */
 ){
 /* generate an FCM payload.
  *	<- Error message or NULL
@@ -255,6 +262,10 @@ printf("*D* => '%s'\n", json_object_to_json_string(jobj) );
 	list = curl_slist_append(list, key);
 	list = curl_slist_append(list, "Content-Type: application/json");
 	
+	if( !verbose && (res = curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, noop_cb)) != CURLE_OK){
+		retmsg = curl_easy_strerror(res);
+		goto clean;
+	}
 	if((res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list)) != CURLE_OK){
 		retmsg = curl_easy_strerror(res);
 		goto clean;
@@ -372,7 +383,7 @@ int main( int ac, char ** av){
 
 	read_configuration( conf_file );
 
-	const char *res = sendFCM( token, senderID, title, message, priority );
+	const char *res = sendFCM( token, senderID, title, message, priority, true );
 	if(res){
 		fprintf( stderr, "*E* %s\n", res );
 		exit(EXIT_FAILURE);
